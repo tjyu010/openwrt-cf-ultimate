@@ -44,6 +44,17 @@ if [ -z "$BEST_IP" ]; then
   exit 1
 fi
 
+# ===== 健康检测 =====
+source $BASE/core/health.sh
+health_check $BEST_IP
+
+if [ $? -ne 0 ]; then
+  echo "健康检测失败，执行回滚" >> $LOG
+  source $BASE/core/rollback.sh
+  rollback_dns
+  exit 1
+fi
+
 # ===== 更新DNS =====
 source $BASE/core/cfapi.sh
 update_dns $BEST_IP
@@ -53,5 +64,8 @@ if [ "$PROXY" != "" ]; then
   /etc/init.d/$PROXY start
 fi
 
-# ===== 记录 =====
+# ===== 记录稳定IP =====
+echo $BEST_IP > $DATA/last_good
+
+# ===== 日志 =====
 echo "更新完成: $BEST_IP" >> $LOG
